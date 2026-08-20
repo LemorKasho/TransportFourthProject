@@ -1,0 +1,42 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<!-- هذا السطر يمنع تحويل التحذيرات إلى أخطاء تعيق التشغيل مؤقتاً -->
+		<TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="10.0.10" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.0" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.0">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+
+		<!-- التحديث المطلوب: رفع الإصدار ليتوافق مع متطلبات Swagger -->
+		<PackageReference Include="Microsoft.OpenApi" Version="1.6.22" />
+
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="7.0.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Folder Include="Configurations\" />
+		<Folder Include="DTOs\BusType\" />
+		<Folder Include="DTOs\Bus\" />
+		<Folder Include="DTOs\City\" />
+		<Folder Include="DTOs\Employee\" />
+		<Folder Include="DTOs\RoutePrice\" />
+		<Folder Include="DTOs\TripDiscount\" />
+		<Folder Include="DTOs\UserDiscountTicket\" />
+		<Folder Include="DTOs\UserDiscount\" />
+		<Folder Include="Mapping\" />
+		<Folder Include="Migrations\" />
+		<Folder Include="Profiles\" />
+	</ItemGroup>
+
+</Project>
