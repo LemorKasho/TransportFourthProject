@@ -12,5 +12,6 @@ namespace TransportFourthProject.Api.DTOs.Trip
         public string BasePrice { get; set; } = string.Empty;
         public string DiscountName { get; set; } = string.Empty;
         public string DiscountPercentage { get; set; } = string.Empty;
+        public bool IsDeleted { get; set; } = false;
     }
 }

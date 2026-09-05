@@ -101,7 +101,18 @@ namespace TransportFourthProject.Api
             builder.Services.AddScoped<PaymentService>();
             builder.Services.AddScoped<PriceCalculatorService>();
             builder.Services.AddHostedService<BookingCleanupService>();
-
+            builder.Services.AddScoped<IEmployeeCityRepository, EmployeeCityRepository>();
+            builder.Services.AddScoped<IEmployeeBusTypeRepository, EmployeeBusTypeRepository>();
+            builder.Services.AddScoped<IEmployeeTripRepository, EmployeeTripRepository>();
+            builder.Services.AddScoped<IEmployeeBusRepository, EmployeeBusRepository>();
+            builder.Services.AddScoped<IEmployeeRoutePriceRepository, EmployeeRoutePriceRepository>();
+            builder.Services.AddHostedService<TripArrivalService>();
+            builder.Services.AddScoped<IAdminUserDiscountTicketRepo, AdminUserDiscountTicketRepository>();
+            builder.Services.AddScoped<IAdminTripDiscountRepository, AdminTripDiscountRepository>();
+            builder.Services.AddScoped<IAdminUserDiscountRepository, AdminUserDiscountRepository>();
+            builder.Services.AddScoped<IAdminTripRepo, AdminTripRepo>();
+            builder.Services.AddScoped<IDriverDashboardRepo, DriverDashboardRepo>();
+            builder.Services.AddScoped<IAdminAllOperationOnEmployeeTableRepo, AdminAllOperationOnEmployeeTableRepo>();
 
             var app = builder.Build();
             // Configure the HTTP request pipeline.

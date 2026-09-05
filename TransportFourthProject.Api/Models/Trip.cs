@@ -17,6 +17,8 @@ namespace TransportFourthProject.Api.Models
         [Required]
         public int RoutePriceId { get; set; }
         public int? TripDiscountId { get; set; }
+        public bool IsDeleted { get; set; } = false;
+        public bool? IsArrived { get; set; } = false;
 
         #region for relationship with Booking
         public ICollection<Booking> Bookings { get; set; } = new List<Booking>();

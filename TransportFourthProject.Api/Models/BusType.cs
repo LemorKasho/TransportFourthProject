@@ -12,6 +12,7 @@ namespace TransportFourthProject.Api.Models
         [Required]
         [Range(1, 100)]
         public int Capacity { get; set; }
+        public bool IsDeleted { get; set; } = false;
 
         #region for relationship with RoutePrice
         public ICollection<RoutePrice> RoutePrices { get; set; } = new List<RoutePrice>();

@@ -16,7 +16,14 @@ namespace TransportFourthProject.Api.Models
         [Column(TypeName = "decimal(10,2)")]
         [Range(0, double.MaxValue)]
         public decimal Price { get; set; }
+        [Required]
         public int DurationHours { get; set; }
+        [Required]
+        [Column(TypeName = "decimal(10,2)")]
+        [Range(0, double.MaxValue)]
+        public decimal DistanceKm { get; set; } = 0;
+        public bool IsDeleted { get; set; } = false;
+
 
         #region for relationship with Trip
         public ICollection<Trip> Trips { get; set; } = new List<Trip>();

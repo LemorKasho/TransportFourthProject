@@ -24,7 +24,7 @@ namespace TransportFourthProject.Api.Models
         public string Password { get; set; } = string.Empty;
 
         [Required]
-        [StringLength(11, MinimumLength = 11)]
+        [MaxLength(200)]
         public string NationalNumber { get; set; } = string.Empty;
 
         [Required]

@@ -222,6 +222,10 @@ namespace TransportFourthProject.Api.Data
             modelBuilder.Entity<Employee>()
                 .HasIndex(e => e.NationalNumber)
                 .IsUnique();
+
+            modelBuilder.Entity<Bus>()
+                .HasIndex(b => b.BusNumber)
+                .IsUnique();
         }
     }
 }

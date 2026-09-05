@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using TransportFourthProject.Api.Enums;
 
 namespace TransportFourthProject.Api.Models
 {
@@ -8,6 +9,10 @@ namespace TransportFourthProject.Api.Models
         public int Id { get; set; }
         [Required]
         public int BusTypeId { get; set; }
+        [Required]
+        public string BusNumber { get; set; }
+
+        public BusStatus Status { get; set; } = BusStatus.Active;
 
         #region for relationship with Trip
         public ICollection<Trip> Trips { get; set; } = new List<Trip>();

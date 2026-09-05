@@ -26,14 +26,6 @@
 
 	<ItemGroup>
 		<Folder Include="Configurations\" />
-		<Folder Include="DTOs\BusType\" />
-		<Folder Include="DTOs\Bus\" />
-		<Folder Include="DTOs\City\" />
-		<Folder Include="DTOs\Employee\" />
-		<Folder Include="DTOs\RoutePrice\" />
-		<Folder Include="DTOs\TripDiscount\" />
-		<Folder Include="DTOs\UserDiscountTicket\" />
-		<Folder Include="DTOs\UserDiscount\" />
 		<Folder Include="Mapping\" />
 		<Folder Include="Migrations\" />
 		<Folder Include="Profiles\" />

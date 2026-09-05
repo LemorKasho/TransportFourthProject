@@ -21,6 +21,7 @@ namespace TransportFourthProject.Api.Services
 
             if (person is User user)
             {
+                claims.Add(new Claim("AccountType", "User"));
                 claims.Add(new Claim("sub", user.Id.ToString()));
                 claims.Add(new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()));
                 claims.Add(new Claim(ClaimTypes.Name, $"{user.FirstName} {user.LastName}"));
@@ -28,10 +29,13 @@ namespace TransportFourthProject.Api.Services
             }
             else if (person is Employee emp)
             {
+                claims.Add(new Claim("AccountType", "Employee"));
                 claims.Add(new Claim("sub", emp.Id.ToString()));
                 claims.Add(new Claim(ClaimTypes.NameIdentifier, emp.Id.ToString()));
                 claims.Add(new Claim(ClaimTypes.Name, $"{emp.FirstName} {emp.LastName}"));
                 claims.Add(new Claim(ClaimTypes.MobilePhone, emp.Phone));
+
+                claims.Add(new Claim(ClaimTypes.Role, emp.Role.ToString()));
             }
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.Key));

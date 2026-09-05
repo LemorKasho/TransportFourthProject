@@ -12,6 +12,8 @@ namespace TransportFourthProject.Api.Repositories
         Task<Trip?> GetTripDetailsAsync(int tripId);
         Task<int> GetBookedSeatsAsync(int tripId);
 
+
+
         Task<SelectSeatResponseDto> SelectSeatAsync(SelectSeatDto dto, int userId);
         Task<List<SeatStatusDto>> GetTripSeatsAsync(int tripId);
 

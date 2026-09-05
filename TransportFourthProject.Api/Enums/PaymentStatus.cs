@@ -7,5 +7,6 @@
         Successful = 3,
         Failed = 4,
         Expired = 5,
+        PartioallyRefunded = 6
     }
 }

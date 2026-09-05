@@ -22,11 +22,20 @@ namespace TransportFourthProject.Api.Controllers
             _context = context;
             _priceService = priceService;
         }
-        [Authorize]
+      //  [Authorize]
         [HttpPost("cancel-booking/{bookingId}")]
         public async Task<IActionResult> CancelBooking(int bookingId)
         {
+            if (bookingId <= 0)
+                return BadRequest(new BookingResponseDto
+                {
+                    BookingId = bookingId,
+                    BookingStatus = "Invalid",
+                    Message = "Invalid booking Id"
+                });
+
             var booking = await _context.Bookings
+                .Include(b => b.Trip)
                 .FirstOrDefaultAsync(b => b.Id == bookingId);
 
             if (booking == null)
@@ -37,6 +46,14 @@ namespace TransportFourthProject.Api.Controllers
                     Message = "Booking not found"
                 });
 
+            if (booking.Trip.DepartureTime <= DateTime.Now)
+                return BadRequest(new BookingResponseDto
+                {
+                    BookingId = bookingId,
+                    SeatNumber = booking.SeatNumber,
+                    BookingStatus = "Expired",
+                    Message = "Trip has already departed."
+                });
             if (booking.Status == BookingStatus.PendingPayment)
             {
                 if (booking.ExpirationTime.HasValue && booking.ExpirationTime < DateTime.Now)
@@ -65,18 +82,12 @@ namespace TransportFourthProject.Api.Controllers
 
             if (booking.Status == BookingStatus.Confirmed)
             {
-                booking.Status = BookingStatus.Cancelled;
-                booking.SeatStatus = SeatStatus.Available;
-                booking.ExpirationTime = null;
-
-                await _context.SaveChangesAsync();
-
                 return Ok(new BookingResponseDto
                 {
                     BookingId = booking.Id,
                     SeatNumber = booking.SeatNumber,
                     BookingStatus = booking.Status.ToString(),
-                    Message = "Confirmed booking cancelled successfully"
+                    Message = "A 25% deduction will be applied to the booking amount. Are you sure you want to proceed?"
                 });
             }
 
@@ -89,11 +100,22 @@ namespace TransportFourthProject.Api.Controllers
             });
         }
 
-        [Authorize]
-        [HttpPost("temporary-booking/{bookingId}")]
-        public async Task<IActionResult> TemporaryBooking(int bookingId)
+      //  [Authorize]
+        [HttpPost("confirm-cancel-booking/{bookingId}")]
+        public async Task<IActionResult> ConfirmCancelBooking(int bookingId)
         {
-            var booking = await _context.Bookings.FindAsync(bookingId);
+            if (bookingId <= 0)
+                return BadRequest(new BookingResponseDto
+                {
+                    BookingId = bookingId,
+                    BookingStatus = "Invalid",
+                    Message = "Invalid booking Id"
+                });
+
+            var booking = await _context.Bookings
+                .Include(b => b.Trip)
+                .FirstOrDefaultAsync(b => b.Id == bookingId);
+
             if (booking == null)
                 return NotFound(new BookingResponseDto
                 {
@@ -101,6 +123,90 @@ namespace TransportFourthProject.Api.Controllers
                     BookingStatus = "NotFound",
                     Message = "Booking not found"
                 });
+
+            if (booking.Trip.DepartureTime <= DateTime.Now)
+                return BadRequest(new BookingResponseDto
+                {
+                    BookingId = booking.Id,
+                    SeatNumber = booking.SeatNumber,
+                    BookingStatus = "Expired",
+                    Message = "Trip has already departed."
+                });
+
+            if (booking.Status != BookingStatus.Confirmed)
+            {
+                return BadRequest(new BookingResponseDto
+                {
+                    BookingId = booking.Id,
+                    SeatNumber = booking.SeatNumber,
+                    BookingStatus = booking.Status.ToString(),
+                    Message = "Only confirmed bookings can be cancelled"
+                });
+            }
+
+
+            var payment = await _context.Payments.FirstOrDefaultAsync(p => p.BookingId == bookingId);
+            if (payment != null && payment.Status == PaymentStatus.Successful)
+            {
+                decimal newAmount = payment.Amount * 0.75m;
+                payment.Amount = newAmount;
+                payment.Status = PaymentStatus.PartioallyRefunded;
+                payment.PaymentDate = DateTime.Now;
+            }
+
+
+            booking.Status = BookingStatus.Cancelled;
+            booking.SeatStatus = SeatStatus.Available;
+            booking.ExpirationTime = null;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new BookingResponseDto
+            {
+                BookingId = booking.Id,
+                SeatNumber = booking.SeatNumber,
+                BookingStatus = booking.Status.ToString(),
+                Message = "Confirmed booking cancelled successfully.A 25% deduction  has been applied to the booking amount."
+            });
+        }
+        
+      //  [Authorize]
+        [HttpPost("temporary-booking/{bookingId}")]
+        public async Task<IActionResult> TemporaryBooking(int bookingId)
+        {
+            if (bookingId <= 0)
+            {
+                return BadRequest(new BookingResponseDto
+                {
+                    BookingId = bookingId,
+                    BookingStatus = "Invalid",
+                    Message = "Invalid booking id"
+                });
+            }
+
+            var booking = await _context.Bookings
+                .Include(b => b.Trip)
+                .FirstOrDefaultAsync(b => b.Id == bookingId);
+            if (booking == null)
+            {
+                return NotFound(new BookingResponseDto
+                {
+                    BookingId = bookingId,
+                    BookingStatus = "NotFound",
+                    Message = "Booking not found"
+                });
+            }
+
+            if (booking.Trip.DepartureTime <= DateTime.Now)
+            {
+                return BadRequest(new BookingResponseDto
+                {
+                    BookingId = bookingId,
+                    BookingStatus = "Expired",
+                    Message = "Trip has already departed."
+                });
+            }
+
             if(booking.Status == BookingStatus.PendingPayment ||
                   booking.Status == BookingStatus.Confirmed)
             {
@@ -112,6 +218,7 @@ namespace TransportFourthProject.Api.Controllers
                     Message = "Booking is already temporary or confirmed."
                 });
             }
+
             booking.Status = BookingStatus.PendingPayment;
             booking.SeatStatus = SeatStatus.Reserved;
             booking.ExpirationTime = DateTime.Now.AddHours(2);
@@ -128,5 +235,6 @@ namespace TransportFourthProject.Api.Controllers
             };
             return Ok(response);
         }
+
     }
 }

@@ -3,7 +3,7 @@
     public enum EmployeeRole
     {
         Driver = 1,
-        Office = 2,
+        OfficeEmployee = 2,
         Manager = 3
     }
 }

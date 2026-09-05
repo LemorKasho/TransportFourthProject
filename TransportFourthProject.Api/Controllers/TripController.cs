@@ -3,7 +3,10 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 using TransportFourthProject.Api.Data;
+using TransportFourthProject.Api.DTOs.BusType;
+using TransportFourthProject.Api.DTOs.City;
 using TransportFourthProject.Api.DTOs.Trip;
+using TransportFourthProject.Api.Enums;
 using TransportFourthProject.Api.Models;
 using TransportFourthProject.Api.Repositories;
 namespace TransportFourthProject.Api.Controllers
@@ -25,6 +28,8 @@ namespace TransportFourthProject.Api.Controllers
         public async Task<IActionResult> GetAllTrips()
         {
             var trips = await _tripRepo.GetAllTripsAsync();
+            if (!trips.Any())
+                return Ok(new { Message = "No trips available at the moment." });
 
             var result = trips.Select(t => new TripListDto
             {
@@ -52,6 +57,9 @@ namespace TransportFourthProject.Api.Controllers
                                                         hasTime, hasMinutes, busType,
                                                         sortBy, order);
 
+            if (!trips.Any())
+                return Ok(new { Message = "No trips found" });
+
             var result = trips.Select(t => new TripListDto
             {
                 TripId = t.Id,
@@ -67,15 +75,32 @@ namespace TransportFourthProject.Api.Controllers
             return Ok(result);
         }
 
+
         [HttpGet("details/{tripId}")]
         public async Task<IActionResult> GetTripDetails(int tripId)
         {
-            var trip = await _tripRepo.GetTripDetailsAsync(tripId);
-
             if (tripId <= 0)
                 return BadRequest("Invalid trip ID");
+
+            var trip = await _tripRepo.GetTripDetailsAsync(tripId);
+
             if (trip == null)
                 return NotFound("Trip not found");
+
+            if (trip.IsDeleted ||
+                trip.RoutePrice.IsDeleted ||
+                trip.Bus.BusType.IsDeleted ||
+                trip.Bus.Status != BusStatus.Active ||
+                trip.Employee.Status != EmployeeStatus.Active)
+            {
+                return BadRequest(new { Message = "Trip is no longer available." });
+            }
+
+            if (trip.DepartureTime <= DateTime.Now.AddHours(4))
+                return BadRequest(new { Message = "Trip is no longer available." });
+
+            if (trip.DepartureTime <= DateTime.Now)
+                return BadRequest(new { Message = "Trip has already departed." });
 
             var bookedSeats = await _tripRepo.GetBookedSeatsAsync(tripId);
 
@@ -91,71 +116,76 @@ namespace TransportFourthProject.Api.Controllers
                 StartCity = trip.RoutePrice.StartCity.Name,
                 EndCity = trip.RoutePrice.EndCity.Name,
 
-                BusNumber = trip.Bus.Id,
+                BusNumber = trip.Bus.BusNumber,
                 BusType = trip.Bus.BusType.Type,
 
                 AvailableSeats = availableSeats,
                 TripStatus = tripStatus,
 
-                BasePrice = (trip.RoutePrice.Price.ToString()) + " SYP",
+                BasePrice = trip.RoutePrice.Price + " SYP",
 
                 DriverName = $"{trip.Employee.FirstName} {trip.Employee.LastName}",
 
                 DiscountName = trip.TripDiscount?.Name ?? "no discount",
                 DiscountPercentage = (trip.TripDiscount?.Percentage ?? 0) + "%"
-
             };
 
             return Ok(dto);
         }
 
-        [Authorize]
         [HttpGet("{tripId}/seats")]
         public async Task<IActionResult> GetTripSeats(int tripId)
         {
-            var trip = await _tripRepo.GetTripDetailsAsync(tripId);
             if (tripId <= 0)
                 return BadRequest("Invalid trip ID");
 
+            var trip = await _tripRepo.GetTripDetailsAsync(tripId);
+
             if (trip == null)
                 return NotFound("Trip not found.");
+
+            if(trip.DepartureTime <= DateTime.Now.AddHours(4))
+                return BadRequest(new { Message = "Trip is no longer available." });
+
+            if (trip.DepartureTime <= DateTime.Now)
+                return BadRequest(new { Message = "Trip has already departed." });
 
             var seats = await _tripRepo.GetTripSeatsAsync(tripId);
 
             return Ok(seats);
         }
 
-        [Authorize]
         [HttpGet("{tripId}/available-seats")]
         public async Task<IActionResult> GetAvailableSeats(int tripId)
         {
-            var trip = await _tripRepo.GetTripDetailsAsync(tripId);
             if (tripId <= 0)
                 return BadRequest("Invalid trip ID");
 
+            var trip = await _tripRepo.GetTripDetailsAsync(tripId);
+
             if (trip == null)
                 return NotFound("Trip not found.");
+            if(trip.DepartureTime <= DateTime.Now.AddHours(4))
+                return BadRequest(new { Message = "Trip is no longer available." });
+
+            if (trip.DepartureTime <= DateTime.Now)
+                return BadRequest(new { Message = "Trip has already departed." });
 
             var seats = await _tripRepo.GetAvailableSeatsAsync(tripId);
 
             return Ok(seats);
         }
 
-        [Authorize]
+       // [Authorize]
         [HttpPost("select-seat")]
         public async Task<SelectSeatResponseDto> SelectSeat([FromBody] SelectSeatDto dto)
         {
             if (!ModelState.IsValid)
                 return new SelectSeatResponseDto
                 {
-                    Message = "Only numbers are allowed."
+                    Message = "TripId and SeatNumber must be positive numbers."
                 };
 
-            if(dto.SeatNumber <= 0 || dto.TripId <= 0)
-                return new SelectSeatResponseDto
-                {
-                    Message = "Seat number and TripId must be positive numbers."
-                };
 
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (userId == null)

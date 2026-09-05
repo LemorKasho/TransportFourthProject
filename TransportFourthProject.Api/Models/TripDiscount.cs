@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using TransportFourthProject.Api.Enums;
 
 namespace TransportFourthProject.Api.Models
 {
@@ -13,6 +14,8 @@ namespace TransportFourthProject.Api.Models
         [Required]
         [Range(0, 100)]
         public int Percentage { get; set; }
+
+        public TripDiscountStatus Status { get; set; } = TripDiscountStatus.Active;
 
         #region for relationship with Trip
         public ICollection<Trip> Trips { get; set; } = new List<Trip>();

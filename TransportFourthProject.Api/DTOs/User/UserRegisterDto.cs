@@ -5,12 +5,14 @@ namespace TransportFourthProject.Api.DTOs.User
     public class UserRegisterDto
     {
         [Required(ErrorMessage = "First name is required")]
+        [RegularExpression(@"^[a-zA-Z]+$", ErrorMessage = "First name must contain english letters only.")]
         [MinLength(2, ErrorMessage = "First name must be at least 2 characters")]
         [MaxLength(49, ErrorMessage = "First name must be less than 50 characters")]
         public string FirstName { get; set; } = string.Empty;
 
 
         [Required(ErrorMessage = "Last name is required")]
+        [RegularExpression(@"^[a-zA-Z]+$", ErrorMessage = "Last name must contain english letters only.")]
         [MinLength(2, ErrorMessage = "Last name must be at least 2 characters")]
         [MaxLength(49, ErrorMessage = "Last name must be less than 50 characters")]
         public string LastName { get; set; } = string.Empty;
@@ -22,17 +24,19 @@ namespace TransportFourthProject.Api.DTOs.User
 
 
         [Required(ErrorMessage = "National number is required")]
-        [StringLength(11, MinimumLength = 11, ErrorMessage = "National number must be exactly 11 digits")]
+        [RegularExpression(@"^\d{11}$", ErrorMessage = "National number must be exactly 11 digits")]
         public string NationalNumber { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Password is required")]
+        [RegularExpression(
+             @"^(?!.*[\u0600-\u06FF])(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()_\-=\[\]{};':""\\|,.<>\/?])[A-Za-z0-9!@#$%^&*()_\-=\[\]{};':""\\|,.<>\/?]{8,}$",
+             ErrorMessage = "Password must contain at least one English letter, one number, one symbol, and no Arabic characters.")]
         [MinLength(8, ErrorMessage = "Password must be at least 8 characters")]
         [MaxLength(49, ErrorMessage = "Password must be less than 50 characters")]
         public string Password { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Confirm password is required")]
-        [MinLength(8, ErrorMessage = "Confirm password must be at least 8 characters")]
-        [MaxLength(49, ErrorMessage = "Confirm password must be less than 50 characters")]
+        [Compare("Password", ErrorMessage = "Passwords do not match")]
         public string ConfirmPassword { get; set; } = string.Empty;
     }
 }

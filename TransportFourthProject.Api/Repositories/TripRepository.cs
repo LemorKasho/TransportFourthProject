@@ -1,5 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TransportFourthProject.Api.Data;
+using TransportFourthProject.Api.DTOs.BusType;
+using TransportFourthProject.Api.DTOs.City;
 using TransportFourthProject.Api.DTOs.Trip;
 using TransportFourthProject.Api.Enums;
 using TransportFourthProject.Api.Models;
@@ -16,55 +19,63 @@ namespace TransportFourthProject.Api.Repositories
         public async Task<IEnumerable<Trip>> GetAllTripsAsync()
         {
             return await _context.Trips
-                .Include(t => t.RoutePrice)
-                    .ThenInclude(rp => rp.StartCity)
-                .Include(t => t.RoutePrice)
-                  .ThenInclude(rp => rp.EndCity)
-                .Include(t => t.Bus)
-                    .ThenInclude(b => b.BusType)
+                .Include(t => t.RoutePrice).ThenInclude(rp => rp.StartCity)
+                .Include(t => t.RoutePrice).ThenInclude(rp => rp.EndCity)
+                .Include(t => t.Bus).ThenInclude(b => b.BusType)
+                .Include(t => t.Employee)
                 .Include(t => t.TripDiscount)
+                .Where(t =>
+                    t.DepartureTime > DateTime.Now.AddHours(4) && 
+                    !t.IsDeleted &&                               
+                    t.IsArrived != true
+                    )
                 .ToListAsync();
         }
 
-        public async Task<IEnumerable<Trip>> SearchTripsAsync(string? startCity, string? endCity,
-                                                               DateTime? date, bool hasTime, bool hasMinutes,
-                                                               string? busType, string? sortBy, string? order)
+        public async Task<IEnumerable<Trip>> SearchTripsAsync(
+            string? startCity, string? endCity,
+            DateTime? date, bool hasTime, bool hasMinutes,
+            string? busType, string? sortBy, string? order)
         {
             var query = _context.Trips
-                .Include(t => t.Bus)
-                    .ThenInclude(b => b.BusType)
-                .Include(t => t.RoutePrice)
-                    .ThenInclude(rp => rp.StartCity)
-                .Include(t => t.RoutePrice)
-                    .ThenInclude(rp => rp.EndCity)
+                .Include(t => t.Bus).ThenInclude(b => b.BusType)
+                .Include(t => t.RoutePrice).ThenInclude(rp => rp.StartCity)
+                .Include(t => t.RoutePrice).ThenInclude(rp => rp.EndCity)
+                .Include(t => t.Employee)
                 .Include(t => t.TripDiscount)
+                .Where(t =>
+                    t.DepartureTime > DateTime.Now.AddHours(4) &&   
+                    !t.IsDeleted &&                                 
+                    t.IsArrived != true                        
+                )
                 .AsQueryable();
+
             if (date.HasValue)
             {
                 if (hasMinutes)
                 {
-                    query = query.Where(t => t.DepartureTime.Date == date.Value.Date
-                    && t.DepartureTime.Hour == date.Value.Hour
-                    && t.DepartureTime.Minute == date.Value.Minute);
+                    query = query.Where(t =>
+                        t.DepartureTime.Date == date.Value.Date &&
+                        t.DepartureTime.Hour == date.Value.Hour &&
+                        t.DepartureTime.Minute == date.Value.Minute);
                 }
                 else if (hasTime)
                 {
-                    query = query.Where(t => t.DepartureTime.Date == date.Value.Date
-                    && t.DepartureTime.Hour == date.Value.Hour);
+                    query = query.Where(t =>
+                        t.DepartureTime.Date == date.Value.Date &&
+                        t.DepartureTime.Hour == date.Value.Hour);
                 }
                 else
                 {
                     query = query.Where(t => t.DepartureTime.Date == date.Value.Date);
                 }
             }
+
             if (!string.IsNullOrEmpty(startCity))
                 query = query.Where(t => t.RoutePrice.StartCity.Name == startCity);
 
             if (!string.IsNullOrEmpty(endCity))
                 query = query.Where(t => t.RoutePrice.EndCity.Name == endCity);
-
-            if (date.HasValue)
-                query = query.Where(t => t.DepartureTime.Date == date.Value.Date);
 
             if (!string.IsNullOrEmpty(busType))
                 query = query.Where(t => t.Bus.BusType.Type == busType);
@@ -72,50 +83,69 @@ namespace TransportFourthProject.Api.Repositories
             if (!string.IsNullOrEmpty(sortBy))
             {
                 bool desc = order?.ToLower() == "desc";
+                var sortFields = sortBy.Split(',');
 
-                switch (sortBy.ToLower())
+                IOrderedQueryable<Trip>? orderedQuery = null;
+
+                foreach (var field in sortFields)
                 {
-                    case "time":
-                        query = desc
-                            ? query.OrderByDescending(t => t.DepartureTime)
-                            : query.OrderBy(t => t.DepartureTime);
-                        break;
+                    switch (field.ToLower())
+                    {
+                        case "date":
+                            orderedQuery = orderedQuery == null
+                                ? (desc ? query.OrderByDescending(t => t.DepartureTime)
+                                        : query.OrderBy(t => t.DepartureTime))
+                                : (desc ? orderedQuery.ThenByDescending(t => t.DepartureTime)
+                                        : orderedQuery.ThenBy(t => t.DepartureTime));
+                            break;
 
-                    case "startcity":
-                        query = desc
-                            ? query.OrderByDescending(t => t.RoutePrice.StartCity.Name)
-                            : query.OrderBy(t => t.RoutePrice.StartCity.Name);
-                        break;
+                        case "startcity":
+                            orderedQuery = orderedQuery == null
+                                ? (desc ? query.OrderByDescending(t => t.RoutePrice.StartCity.Name)
+                                        : query.OrderBy(t => t.RoutePrice.StartCity.Name))
+                                : (desc ? orderedQuery.ThenByDescending(t => t.RoutePrice.StartCity.Name)
+                                        : orderedQuery.ThenBy(t => t.RoutePrice.StartCity.Name));
+                            break;
 
-                    case "endcity":
-                        query = desc
-                            ? query.OrderByDescending(t => t.RoutePrice.EndCity.Name)
-                            : query.OrderBy(t => t.RoutePrice.EndCity.Name);
-                        break;
-                    case "bustype":
-                        query = desc
-                            ? query.OrderByDescending(t => t.Bus.BusType.Type)
-                            : query.OrderBy(t => t.Bus.BusType.Type);
-                        break;
-                    default:
-                        break;
+                        case "endcity":
+                            orderedQuery = orderedQuery == null
+                                ? (desc ? query.OrderByDescending(t => t.RoutePrice.EndCity.Name)
+                                        : query.OrderBy(t => t.RoutePrice.EndCity.Name))
+                                : (desc ? orderedQuery.ThenByDescending(t => t.RoutePrice.EndCity.Name)
+                                        : orderedQuery.ThenBy(t => t.RoutePrice.EndCity.Name));
+                            break;
+                        case "bustype":
+                            orderedQuery = orderedQuery == null
+                                ? (desc ? query.OrderByDescending(t => t.Bus.BusType.Type)
+                                        : query.OrderBy(t => t.Bus.BusType.Type))
+                                : (desc ? orderedQuery.ThenByDescending(t => t.Bus.BusType.Type)
+                                        : orderedQuery.ThenBy(t => t.Bus.BusType.Type));
+                            break;
+                    }
                 }
+
+                if (orderedQuery != null)
+                    query = orderedQuery;
             }
+
             return await query.ToListAsync();
         }
 
         public async Task<Trip?> GetTripDetailsAsync(int tripId)
         {
             return await _context.Trips
-                .Include(t => t.Bus)
-                    .ThenInclude(b => b.BusType)
-                .Include(t => t.RoutePrice)
-                    .ThenInclude(rp => rp.StartCity)
-                .Include(t => t.RoutePrice)
-                    .ThenInclude(rp => rp.EndCity)
+                .Include(t => t.Bus).ThenInclude(b => b.BusType)
+                .Include(t => t.RoutePrice).ThenInclude(rp => rp.StartCity)
+                .Include(t => t.RoutePrice).ThenInclude(rp => rp.EndCity)
                 .Include(t => t.Employee)
                 .Include(t => t.TripDiscount)
-                .FirstOrDefaultAsync(t => t.Id == tripId);
+                .Where(t =>
+                    t.Id == tripId &&
+                    t.DepartureTime > DateTime.Now.AddHours(4) &&
+                    t.IsArrived != true &&
+                    !t.IsDeleted               
+                )
+                .FirstOrDefaultAsync();
         }
 
         public async Task<int> GetBookedSeatsAsync(int tripId)
@@ -186,46 +216,40 @@ namespace TransportFourthProject.Api.Repositories
 
         public async Task<SelectSeatResponseDto> SelectSeatAsync(SelectSeatDto dto, int userId)
         {
-            var trip = await _context.Trips
-                    .Include(t => t.Bus)
-                       .ThenInclude(b => b.BusType)
-                    .FirstOrDefaultAsync(t => t.Id == dto.TripId);
-
+            var trip = await GetTripDetailsAsync(dto.TripId);
             if (trip == null)
-                return new SelectSeatResponseDto
-                {
-                    Message = "Trip not found"
-                };
+                return new SelectSeatResponseDto { Message = "Trip not available" };
 
             int capacity = trip.Bus.BusType.Capacity;
-            if (dto.SeatNumber > capacity)
-                return new SelectSeatResponseDto 
+            if (dto.SeatNumber < 1 || dto.SeatNumber > capacity)
+                return new SelectSeatResponseDto
                 {
-                    Message = "Seat exceeds Capacity,This bus has only " + capacity + " seats."
+                    Message = $"Seat exceeds capacity. This bus has only {capacity} seats."
                 };
 
             var existingBookedSeat = await _context.Bookings
                 .FirstOrDefaultAsync(b =>
                     b.TripId == dto.TripId &&
                     b.SeatNumber == dto.SeatNumber &&
-                    (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.PendingPayment)
+                    (b.Status == BookingStatus.Confirmed ||
+                     b.Status == BookingStatus.PendingPayment)
                 );
-            if(existingBookedSeat != null)
-            {
-                return new SelectSeatResponseDto 
+
+            if (existingBookedSeat != null)
+                return new SelectSeatResponseDto
                 {
                     Message = "Seat already confirmed or temporary booked"
                 };
-            }
 
             var existingSameSeat = await _context.Bookings
                 .FirstOrDefaultAsync(b =>
                     b.TripId == dto.TripId &&
                     b.UserId == userId &&
                     b.SeatNumber == dto.SeatNumber &&
-                    (b.Status == BookingStatus.Created)
+                    b.Status == BookingStatus.Created
                 );
-            if(existingSameSeat != null)
+
+            if (existingSameSeat != null)
             {
                 return new SelectSeatResponseDto
                 {
@@ -246,6 +270,7 @@ namespace TransportFourthProject.Api.Repositories
             {
                 existingDifferentSeat.SeatNumber = dto.SeatNumber;
                 await _context.SaveChangesAsync();
+
                 return new SelectSeatResponseDto
                 {
                     BookingId = existingDifferentSeat.Id,
@@ -272,7 +297,7 @@ namespace TransportFourthProject.Api.Repositories
             {
                 BookingId = booking.Id,
                 SeatNumber = booking.SeatNumber,
-                Message = "Seat selected successfully. Still available until temporary or immediate booking."
+                Message = "Seat selected successfully"
             };
         }
     }

@@ -1,9 +1,14 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
+using TransportFourthProject.Api.Data;
 using TransportFourthProject.Api.DTOs;
+using TransportFourthProject.Api.DTOs.Employee;
 using TransportFourthProject.Api.DTOs.User;
+using TransportFourthProject.Api.DTOs.User.ForgotPassword;
+using TransportFourthProject.Api.Enums;
 using TransportFourthProject.Api.Models;
 using TransportFourthProject.Api.Repositories;
 using TransportFourthProject.Api.Services;
@@ -15,16 +20,18 @@ namespace TransportFourthProject.Api.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
+        private readonly AppDbContext _context;
         private readonly IRepository<User> _userRepo;
         private readonly IRepository<RefreshToken> _refreshTokenRepo;
         private readonly TokenService _tokenService;
         private readonly JwtSettings _jwt;
         private readonly PasswordHasher _passwordHasher;
         private readonly AesEncryptionService _aesEncryptionService;
-        public AuthController(IRepository<User> userRepo, IRepository<RefreshToken> refreshTokenRepo,
+        public AuthController(AppDbContext context, IRepository<User> userRepo, IRepository<RefreshToken> refreshTokenRepo,
             TokenService tokenService, AesEncryptionService aesEncryptionService,
             PasswordHasher passwordHasher, JwtSettings jwt)
         {
+            _context = context;
             _userRepo = userRepo;
             _refreshTokenRepo = refreshTokenRepo;
             _tokenService = tokenService;
@@ -32,7 +39,6 @@ namespace TransportFourthProject.Api.Controllers
             _aesEncryptionService = aesEncryptionService;
             _jwt = jwt;
         }
-
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] UserLoginDto dto)
         {
@@ -169,19 +175,40 @@ namespace TransportFourthProject.Api.Controllers
         {
             var storedToken = await _refreshTokenRepo.GetAsync(t => t.Token == dto.RefreshToken);
 
-            if (storedToken == null ||
-                storedToken.ExpiresAt < DateTime.Now ||
-                storedToken.IsRevoked)
+            if (storedToken == null
+                || storedToken.ExpiresAt < DateTime.Now
+                || storedToken.IsRevoked)
             {
                 return BadRequest(new { Message = "Refresh failed" });
             }
 
-            var user = await _userRepo.GetAsync(u => u.Id == storedToken.UserId);
+            object person = null;
 
-            if (user == null)
+            if (storedToken.UserId != null)
+            {
+                var user = await _userRepo.GetAsync(u => u.Id == storedToken.UserId);
+                if (user == null)
+                    return BadRequest(new { Message = "Refresh failed" });
+
+                person = user;
+            }
+
+            else if (storedToken.EmployeeId != null)
+            {
+                var employee = await _context.Employees
+                    .FirstOrDefaultAsync(e => e.Id == storedToken.EmployeeId);
+
+                if (employee == null)
+                    return BadRequest(new { Message = "Refresh failed" });
+
+                person = employee;
+            }
+            else
+            {
                 return BadRequest(new { Message = "Refresh failed" });
+            }
 
-            var newAccessToken = _tokenService.GenerateUserToken(user);
+            var newAccessToken = _tokenService.GenerateUserToken(person);
 
             var newRefreshToken = _tokenService.GenerateRefreshToken();
 
@@ -191,8 +218,10 @@ namespace TransportFourthProject.Api.Controllers
             var newToken = new RefreshToken
             {
                 Token = newRefreshToken,
-                UserId = user.Id,
-                ExpiresAt = DateTime.Now.AddDays(7)
+                ExpiresAt = DateTime.Now.AddDays(7),
+                IsRevoked = false,
+                UserId = storedToken.UserId,
+                EmployeeId = storedToken.EmployeeId
             };
 
             await _refreshTokenRepo.AddAsync(newToken);
@@ -206,8 +235,7 @@ namespace TransportFourthProject.Api.Controllers
                 ExpiresIn = _jwt.DurationInMinutes * 60
             });
         }
-
-        [Authorize]
+    //    [Authorize]
         [HttpGet("me")]
         public async Task<IActionResult> Me()
         {
@@ -228,7 +256,7 @@ namespace TransportFourthProject.Api.Controllers
             });
         }
 
-        [Authorize]
+       // [Authorize]
         [HttpPost("logout")]
         public async Task<IActionResult> Logout()
         {
@@ -252,5 +280,350 @@ namespace TransportFourthProject.Api.Controllers
 
             return Ok(new { Message = "Logged out successfully" });
         }
+
+        [HttpPost("forgot-password")]
+        public IActionResult ForgotPassword([FromBody] ForgotPasswordDto dto)
+        {
+            var user = _context.Users.FirstOrDefault(u => u.Phone == dto.PhoneNumber);
+            if (user == null)
+                return BadRequest(new { Message = "Phone number not found" });
+
+            var random = new Random();
+            bool success = random.Next(0, 2) == 1;
+
+            if (!success)
+                return BadRequest(new { Message = "Failed to send verification code. Try again." });
+
+            var code = random.Next(1000, 9999).ToString();
+
+            user.ResetCode = code;
+            user.ResetCodeExpiry = DateTime.Now.AddMinutes(5);
+
+            _context.SaveChanges();
+
+            return Ok(new 
+            {
+                Message = "Verification code sent successfully",
+                Code = code
+            });
+        }
+
+        [HttpPost("verify-reset-code")]
+        public IActionResult VerifyResetCode([FromBody] VerifyResetCodeDto dto)
+        {
+            var user = _context.Users.FirstOrDefault(u => u.Phone == dto.PhoneNumber);
+            if (user == null)
+                return BadRequest(new { Message = "Phone number not found" });
+
+            if (string.IsNullOrEmpty(user.ResetCode))
+                return BadRequest(new { Message = "No reset code found. Please request a new one." });
+
+            if (!Regex.IsMatch(dto.Code, @"^\d{4}$"))
+                return BadRequest(new { Message = "Code must be exactly 4 digits." });
+
+            if (user.ResetCode != dto.Code)
+                return BadRequest(new { Message = "Invalid verification code" });
+
+            if (user.ResetCodeExpiry == null || user.ResetCodeExpiry < DateTime.Now)
+                return BadRequest(new { Message = "Verification code expired" });
+
+            return Ok(new { Message = "Code verified successfully" });
+        }
+
+        [HttpPost("reset-password")]
+        public IActionResult ResetPassword([FromBody] ResetPasswordDto dto)
+        {
+            var user = _context.Users.FirstOrDefault(u => u.Phone == dto.PhoneNumber);
+            if (user == null)
+                return BadRequest(new { Message = "Phone number not found" });
+
+            if (dto.NewPassword != dto.ConfirmPassword)
+                return BadRequest(new { Message = "Passwords do not match" });
+
+            if (string.IsNullOrEmpty(user.ResetCode) || user.ResetCodeExpiry < DateTime.Now)
+                return BadRequest(new { Message = "Reset code is invalid or expired" });
+
+            user.Password = _passwordHasher.HashPassword(dto.NewPassword);
+
+            user.ResetCode = null;
+            user.ResetCodeExpiry = null;
+
+            _context.SaveChanges();
+
+            return Ok(new { Message = "Password reset successfully" });
+        }
+
+        [HttpPost("employee/login")]
+        public async Task<IActionResult> EmployeeLogin([FromBody] EmployeeLoginDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var employee = await _context.Employees
+                .FirstOrDefaultAsync(e => e.Phone == dto.Phone);
+
+            if (employee == null)
+                return Unauthorized(new { Message = "Login failed" });
+
+            var passwordCheck = _passwordHasher.VerifyPassword(dto.Password, employee.Password);
+            if (!passwordCheck)
+                return Unauthorized(new { Message = "Login failed" });
+
+            var existingRefresh = await _refreshTokenRepo.GetAsync(r =>
+                r.EmployeeId == employee.Id &&
+                r.ExpiresAt > DateTime.Now &&
+                !r.IsRevoked);
+
+            if (existingRefresh != null)
+            {
+                return Ok(new
+                {
+                    Message = "You are already logged in",
+                    AccessToken = _tokenService.GenerateUserToken(employee),
+                    RefreshToken = existingRefresh.Token,
+                    Employee = new
+                    {
+                        employee.Id,
+                        employee.FirstName,
+                        employee.LastName,
+                        employee.Phone,
+                        employee.Role,
+                        employee.Status
+                    }
+                });
+            }
+
+            var accessToken = _tokenService.GenerateUserToken(employee);
+            var refreshToken = _tokenService.GenerateRefreshToken();
+
+            var refresh = new RefreshToken
+            {
+                Token = refreshToken,
+                EmployeeId = employee.Id,
+                ExpiresAt = DateTime.Now.AddDays(7),
+                IsRevoked = false
+            };
+
+            await _refreshTokenRepo.AddAsync(refresh);
+            await _refreshTokenRepo.SaveChangesAsync();
+
+            return Ok(new
+            {
+                Message = "Login successful",
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                Employee = new
+                {
+                    employee.Id,
+                    employee.FirstName,
+                    employee.LastName,
+                    employee.Phone,
+                    employee.Role,
+                    employee.Status
+                }
+            });
+        }
+
+       // [Authorize]
+        [HttpGet("employee/me")]
+        public async Task<IActionResult> EmployeeMe()
+        {
+            var employeeId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var accountType = User.FindFirst("AccountType")?.Value;
+
+            if (employeeId == null || accountType != "Employee")
+                return Unauthorized(new { Message = "Invalid token" });
+
+            var employee = await _context.Employees.FindAsync(int.Parse(employeeId));
+            if (employee == null)
+                return Unauthorized(new { Message = "Employee not found" });
+
+            return Ok(new
+            {
+                employee.Id,
+                FullName = employee.FirstName + " " + employee.LastName,
+                employee.Phone,
+                employee.Role,
+                employee.Status,
+                employee.HireDate,
+                employee.LicenseNumber
+            });
+        }
+
+       // [Authorize]
+        [HttpPost("employee/logout")]
+        public async Task<IActionResult> EmployeeLogout()
+        {
+            var employeeId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var accountType = User.FindFirst("AccountType")?.Value;
+
+            if (employeeId == null || accountType != "Employee")
+                return Unauthorized(new { Message = "Invalid token" });
+
+            var tokens = await _refreshTokenRepo.FindAsync(r =>
+                r.EmployeeId == int.Parse(employeeId) &&
+                !r.IsRevoked);
+
+            if (tokens == null || !tokens.Any())
+                return Ok(new { Message = "You are already logged out" });
+
+            foreach (var token in tokens)
+            {
+                token.IsRevoked = true;
+                _refreshTokenRepo.Update(token);
+            }
+
+            await _refreshTokenRepo.SaveChangesAsync();
+
+            return Ok(new { Message = "Logged out successfully" });
+        }
+
+        [HttpPost("driver/login")]
+        public async Task<IActionResult> DriverLogin([FromBody] EmployeeLoginDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var driver = await _context.Employees
+                .FirstOrDefaultAsync(e => e.Phone == dto.Phone && e.Role == EmployeeRole.Driver);
+
+            if (driver == null)
+                return Unauthorized(new { Message = "Login failed" });
+
+            var passwordCheck = _passwordHasher.VerifyPassword(dto.Password, driver.Password);
+            if (!passwordCheck)
+                return Unauthorized(new { Message = "Login failed" });
+
+            // هل لديه RefreshToken غير منتهي؟
+            var existingRefresh = await _refreshTokenRepo.GetAsync(r =>
+                r.EmployeeId == driver.Id &&
+                r.ExpiresAt > DateTime.Now &&
+                !r.IsRevoked);
+
+            if (existingRefresh != null)
+            {
+                return Ok(new
+                {
+                    Message = "You are already logged in",
+                    AccessToken = _tokenService.GenerateUserToken(driver),
+                    RefreshToken = existingRefresh.Token,
+                    Driver = new
+                    {
+                        driver.Id,
+                        driver.FirstName,
+                        driver.LastName,
+                        driver.Phone,
+                        driver.LicenseNumber,
+                        driver.Status
+                    }
+                });
+            }
+
+            // إنشاء AccessToken + RefreshToken جديد
+            var accessToken = _tokenService.GenerateUserToken(driver);
+            var refreshToken = _tokenService.GenerateRefreshToken();
+
+            var refresh = new RefreshToken
+            {
+                Token = refreshToken,
+                EmployeeId = driver.Id,
+                ExpiresAt = DateTime.Now.AddDays(7),
+                IsRevoked = false
+            };
+
+            await _refreshTokenRepo.AddAsync(refresh);
+            await _refreshTokenRepo.SaveChangesAsync();
+
+            return Ok(new
+            {
+                Message = "Login successful",
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                Driver = new
+                {
+                    driver.Id,
+                    driver.FirstName,
+                    driver.LastName,
+                    driver.Phone,
+                    driver.LicenseNumber,
+                    driver.Status
+                }
+            });
+        }
+
+       // [Authorize(Roles = "Driver")]
+        [HttpGet("driver/me")]
+        public async Task<IActionResult> DriverMe()
+        {
+            var driverId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var accountType = User.FindFirst("AccountType")?.Value;
+
+            if (driverId == null || accountType != "Employee")
+                return Unauthorized(new { Message = "Invalid token" });
+
+            var driver = await _context.Employees.FindAsync(int.Parse(driverId));
+            if (driver == null || driver.Role != EmployeeRole.Driver)
+                return Unauthorized(new { Message = "Driver not found" });
+
+            return Ok(new
+            {
+                driver.Id,
+                FullName = driver.FirstName + " " + driver.LastName,
+                driver.Phone,
+                driver.LicenseNumber,
+                driver.Status,
+                driver.HireDate
+            });
+        }
+
+        //[Authorize(Roles = "Driver")]
+        [HttpPost("driver/logout")]
+        public async Task<IActionResult> DriverLogout()
+        {
+            var driverId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var accountType = User.FindFirst("AccountType")?.Value;
+
+            if (driverId == null || accountType != "Employee")
+                return Unauthorized(new { Message = "Invalid token" });
+
+            var tokens = await _refreshTokenRepo.FindAsync(r =>
+                r.EmployeeId == int.Parse(driverId) &&
+                !r.IsRevoked);
+
+            if (tokens == null || !tokens.Any())
+                return Ok(new { Message = "You are already logged out" });
+
+            foreach (var token in tokens)
+            {
+                token.IsRevoked = true;
+                _refreshTokenRepo.Update(token);
+            }
+
+            await _refreshTokenRepo.SaveChangesAsync();
+
+            return Ok(new { Message = "Logged out successfully" });
+        }
+
+
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

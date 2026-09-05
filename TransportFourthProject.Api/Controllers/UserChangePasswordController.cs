@@ -10,7 +10,7 @@ namespace TransportFourthProject.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    //[Authorize]
     public class UserChangePasswordController : ControllerBase
     {
         private readonly IRepository<User> _userRepo;
@@ -21,8 +21,7 @@ namespace TransportFourthProject.Api.Controllers
             _userRepo = userRepo;
             _passwordHasher = passwordHasher;
         }
-
-        [HttpPut("change")]
+        [HttpPut("change-password")]
         public async Task<IActionResult> ChangePassword([FromBody] UserChangePasswordDto dto)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

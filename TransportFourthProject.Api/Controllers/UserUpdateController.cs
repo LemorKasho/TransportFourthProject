@@ -3,13 +3,14 @@ using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
+using TransportFourthProject.Api.DTOs.User;
 using TransportFourthProject.Api.Models;
 using TransportFourthProject.Api.Repositories;
 namespace TransportFourthProject.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    //[Authorize]
     public class UserUpdateController : ControllerBase
     {
         private readonly IRepository<User> _userRepo;
@@ -21,7 +22,7 @@ namespace TransportFourthProject.Api.Controllers
 
         [HttpPatch("update")]
         [Consumes("application/json-patch+json")]
-        public async Task<IActionResult> PatchUpdate([FromBody] JsonPatchDocument<User> patchDoc)
+        public async Task<IActionResult> PatchUpdate([FromBody] JsonPatchDocument<UserUpdateProfileDto> patchDoc)
         {
             if (patchDoc == null)
                 return BadRequest(new { Message = "Invalid patch document" });
@@ -34,68 +35,26 @@ namespace TransportFourthProject.Api.Controllers
             if (user == null)
                 return Unauthorized(new { Message = "User not found" });
 
-            bool firstNameUpdated = false;
-            bool lastNameUpdated = false;
-            bool phoneUpdated = false;
-
-            foreach (var op in patchDoc.Operations)
+            var dto = new UserUpdateProfileDto
             {
-                if (op.path == null || op.op == null)
-                    return BadRequest(new { Message = "Patch operation must include a valid path and op field" });
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Phone = user.Phone
+            };
 
-                var path = op.path.ToLower();
+            patchDoc.ApplyTo(dto, ModelState);
 
-                if (path != "/firstname" &&
-                    path != "/lastname" &&
-                    path != "/phone")
-                {
-                    return BadRequest(new { Message = $"Field '{op.path}' is not allowed to be updated" });
-                }
-                else
-                {
-                    if (path == "/firstname") firstNameUpdated = true;
-                    if (path == "/lastname") lastNameUpdated = true;
-                    if (path == "/phone") phoneUpdated = true;
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
-                }
-            }
-            patchDoc.ApplyTo(user,ModelState);
-            if(!ModelState.IsValid)
-                { return BadRequest(ModelState); }
+            user.FirstName = dto.FirstName ?? user.FirstName;
+            user.LastName = dto.LastName ?? user.LastName;
+            user.Phone = dto.Phone ?? user.Phone;
 
-            if (firstNameUpdated)
-            { 
-                if (string.IsNullOrWhiteSpace(user.FirstName))
-                    return BadRequest(new { Message = "First name cannot be empty" });
-                if (user.FirstName.Length < 2 || user.FirstName.Length > 49)
-                    return BadRequest(new { Message = "First name must be between 2 and 49 characters" });
-                if (!Regex.IsMatch(user.FirstName, @"^[a-zA-Z]+$"))
-                    return BadRequest(new { Message = "First name must contain only letters" });
-
-            }
-            if (lastNameUpdated)
-            {
-                if (string.IsNullOrWhiteSpace(user.LastName))
-                    return BadRequest(new { Message = "Last name cannot be empty" });
-                if (user.LastName.Length < 2 || user.LastName.Length > 49)
-                    return BadRequest(new { Message = "Last name must be between 2 and 49 characters" });
-                if (!Regex.IsMatch(user.LastName, @"^[a-zA-Z]+$"))
-                    return BadRequest(new { Message = "Last name must contain only letters" });
-            }
-            if (phoneUpdated)
-            {
-                if (string.IsNullOrWhiteSpace(user.Phone))
-                    return BadRequest(new { Message = "Phone cannot be empty" });
-                if (!Regex.IsMatch(user.Phone, @"^09\d{8}$"))
-                    return BadRequest(new { Message = "Phone number must start with 09 and be 10 digits" });
-            }
             _userRepo.Update(user);
             await _userRepo.SaveChangesAsync();
 
-            return Ok(new
-            {
-                Message = "User updated successfully"
-            });
+            return Ok(new { Message = "User updated successfully" });
         }
     }
 }

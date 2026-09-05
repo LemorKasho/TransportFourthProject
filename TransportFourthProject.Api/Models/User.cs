@@ -24,9 +24,11 @@ namespace TransportFourthProject.Api.Models
         public string Password { get; set; } = string.Empty;
 
         [Required]
-        [StringLength(11,MinimumLength = 11)]
+        [MaxLength(200)]
         public string NationalNumber { get; set; } = string.Empty;
 
+        public string? ResetCode { get; set; }
+        public DateTime? ResetCodeExpiry { get; set; }
         #region for relationship with Booking
         public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
         #endregion

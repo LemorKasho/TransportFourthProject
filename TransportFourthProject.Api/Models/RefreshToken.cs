@@ -11,9 +11,12 @@ namespace TransportFourthProject.Api.Models
         [Required]
         public DateTime ExpiresAt { get; set; }
         public bool IsRevoked { get; set; } = false;
-        [Required]
-        public int UserId { get; set; }
+        public int? UserId { get; set; }
         [ForeignKey(nameof(UserId))]
-        public User User { get; set; } = null!;
+        public User? User { get; set; }
+
+        public int? EmployeeId { get; set; }
+        [ForeignKey(nameof(EmployeeId))]
+        public Employee? Employee { get; set; }
     }
 }

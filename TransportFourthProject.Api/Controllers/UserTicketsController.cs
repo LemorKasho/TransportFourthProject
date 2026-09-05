@@ -10,7 +10,7 @@ using TransportFourthProject.Api.Services.Pricing;
 
 namespace TransportFourthProject.Api.Controllers
 {
-    [Authorize]
+  //  [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class UserTicketsController : ControllerBase
@@ -24,7 +24,7 @@ namespace TransportFourthProject.Api.Controllers
             _priceCalculatorService = priceCalculatorService;
         }
 
-        [Authorize]
+      //  [Authorize]
         [HttpGet("my-tickets")]
         public async Task<IActionResult> GetUserTickets()
         {
@@ -45,11 +45,12 @@ namespace TransportFourthProject.Api.Controllers
                         .ThenInclude(bus => bus.BusType)
                 .Include(b => b.User)
                 .Where(b => b.UserId == int.Parse(userId) && 
-                (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.PendingPayment))
+                (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.PendingPayment)
+                && b.Trip.DepartureTime.AddHours(2) > DateTime.Now)
                 .ToListAsync();
             if (!bookings.Any())
             {
-                return Ok(new {Message = "No tickets found for the user." });
+                return Ok(new {Message = "No tickets found." });
             }
             var tickets = new List<GetAllUserTicketsDto>();
 
@@ -68,7 +69,7 @@ namespace TransportFourthProject.Api.Controllers
                     StartCity = booking.Trip.RoutePrice.StartCity.Name,
                     EndCity = booking.Trip.RoutePrice.EndCity.Name,
                     BusType = booking.Trip.Bus.BusType.Type,
-                    BusNumber = booking.Trip.Bus.Id,
+                    BusNumber = booking.Trip.Bus.BusNumber,
                     SeatNumber = booking.SeatNumber,
                     Status = booking.Status.ToString(),
                     ExpirationTime = booking.Status == BookingStatus.PendingPayment
@@ -80,7 +81,7 @@ namespace TransportFourthProject.Api.Controllers
 
             return Ok(tickets);
         }
-        [Authorize]
+        //[Authorize]
         [HttpGet("my-discount-tickets")]
         public async Task<IActionResult> GetUserActiveDiscountTickets()
         {
@@ -106,7 +107,7 @@ namespace TransportFourthProject.Api.Controllers
                 .ToListAsync();
             if(!discounts.Any())
             {
-                return Ok(new { Message = "No active discount tickets found for the user." });
+                return Ok(new { Message = "No active discount tickets found." });
             }
             return Ok(discounts);
         }

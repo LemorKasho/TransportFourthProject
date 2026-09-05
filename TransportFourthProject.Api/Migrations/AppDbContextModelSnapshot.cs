@@ -86,10 +86,21 @@ namespace TransportFourthProject.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("BusNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
                     b.Property<int>("BusTypeId")
                         .HasColumnType("int");
 
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("BusNumber")
+                        .IsUnique();
 
                     b.HasIndex("BusTypeId");
 
@@ -107,6 +118,9 @@ namespace TransportFourthProject.Api.Migrations
                     b.Property<int>("Capacity")
                         .HasColumnType("int");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -121,12 +135,14 @@ namespace TransportFourthProject.Api.Migrations
                         {
                             Id = 1,
                             Capacity = 30,
+                            IsDeleted = false,
                             Type = "Standard"
                         },
                         new
                         {
                             Id = 2,
                             Capacity = 15,
+                            IsDeleted = false,
                             Type = "VIP"
                         });
                 });
@@ -193,8 +209,8 @@ namespace TransportFourthProject.Api.Migrations
 
                     b.Property<string>("NationalNumber")
                         .IsRequired()
-                        .HasMaxLength(11)
-                        .HasColumnType("nvarchar(11)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("Password")
                         .IsRequired()
@@ -322,6 +338,9 @@ namespace TransportFourthProject.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("EmployeeId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("datetime2");
 
@@ -332,10 +351,12 @@ namespace TransportFourthProject.Api.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("UserId")
+                    b.Property<int?>("UserId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
 
                     b.HasIndex("UserId");
 
@@ -353,11 +374,17 @@ namespace TransportFourthProject.Api.Migrations
                     b.Property<int>("BusTypeId")
                         .HasColumnType("int");
 
+                    b.Property<decimal>("DistanceKm")
+                        .HasColumnType("decimal(10,2)");
+
                     b.Property<int>("DurationHours")
                         .HasColumnType("int");
 
                     b.Property<int>("EndCityId")
                         .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
 
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(10,2)");
@@ -380,8 +407,10 @@ namespace TransportFourthProject.Api.Migrations
                         {
                             Id = 1,
                             BusTypeId = 1,
+                            DistanceKm = 0m,
                             DurationHours = 5,
                             EndCityId = 2,
+                            IsDeleted = false,
                             Price = 1200m,
                             StartCityId = 1
                         },
@@ -389,8 +418,10 @@ namespace TransportFourthProject.Api.Migrations
                         {
                             Id = 2,
                             BusTypeId = 1,
+                            DistanceKm = 0m,
                             DurationHours = 5,
                             EndCityId = 1,
+                            IsDeleted = false,
                             Price = 1200m,
                             StartCityId = 2
                         },
@@ -398,8 +429,10 @@ namespace TransportFourthProject.Api.Migrations
                         {
                             Id = 3,
                             BusTypeId = 1,
+                            DistanceKm = 0m,
                             DurationHours = 3,
                             EndCityId = 1,
+                            IsDeleted = false,
                             Price = 800m,
                             StartCityId = 3
                         },
@@ -407,8 +440,10 @@ namespace TransportFourthProject.Api.Migrations
                         {
                             Id = 4,
                             BusTypeId = 1,
+                            DistanceKm = 0m,
                             DurationHours = 3,
                             EndCityId = 3,
+                            IsDeleted = false,
                             Price = 800m,
                             StartCityId = 1
                         },
@@ -416,8 +451,10 @@ namespace TransportFourthProject.Api.Migrations
                         {
                             Id = 5,
                             BusTypeId = 2,
+                            DistanceKm = 0m,
                             DurationHours = 5,
                             EndCityId = 2,
+                            IsDeleted = false,
                             Price = 1500m,
                             StartCityId = 1
                         },
@@ -425,8 +462,10 @@ namespace TransportFourthProject.Api.Migrations
                         {
                             Id = 6,
                             BusTypeId = 2,
+                            DistanceKm = 0m,
                             DurationHours = 5,
                             EndCityId = 1,
+                            IsDeleted = false,
                             Price = 1500m,
                             StartCityId = 2
                         },
@@ -434,8 +473,10 @@ namespace TransportFourthProject.Api.Migrations
                         {
                             Id = 7,
                             BusTypeId = 2,
+                            DistanceKm = 0m,
                             DurationHours = 3,
                             EndCityId = 1,
+                            IsDeleted = false,
                             Price = 1000m,
                             StartCityId = 3
                         },
@@ -443,8 +484,10 @@ namespace TransportFourthProject.Api.Migrations
                         {
                             Id = 8,
                             BusTypeId = 2,
+                            DistanceKm = 0m,
                             DurationHours = 3,
                             EndCityId = 3,
+                            IsDeleted = false,
                             Price = 1000m,
                             StartCityId = 1
                         });
@@ -469,6 +512,12 @@ namespace TransportFourthProject.Api.Migrations
 
                     b.Property<int>("EmployeeId")
                         .HasColumnType("int");
+
+                    b.Property<bool?>("IsArrived")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
 
                     b.Property<int>("RoutePriceId")
                         .HasColumnType("int");
@@ -505,6 +554,10 @@ namespace TransportFourthProject.Api.Migrations
                     b.Property<int>("Percentage")
                         .HasColumnType("int");
 
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.HasKey("Id");
 
                     b.ToTable("TripDiscounts");
@@ -514,19 +567,22 @@ namespace TransportFourthProject.Api.Migrations
                         {
                             Id = 1,
                             Name = "Adha-Aid discount",
-                            Percentage = 10
+                            Percentage = 10,
+                            Status = "Active"
                         },
                         new
                         {
                             Id = 2,
                             Name = "Christmas discount",
-                            Percentage = 20
+                            Percentage = 20,
+                            Status = "Active"
                         },
                         new
                         {
                             Id = 3,
                             Name = "Labor day discount",
-                            Percentage = 30
+                            Percentage = 30,
+                            Status = "Active"
                         });
                 });
 
@@ -550,8 +606,8 @@ namespace TransportFourthProject.Api.Migrations
 
                     b.Property<string>("NationalNumber")
                         .IsRequired()
-                        .HasMaxLength(11)
-                        .HasColumnType("nvarchar(11)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("Password")
                         .IsRequired()
@@ -562,6 +618,12 @@ namespace TransportFourthProject.Api.Migrations
                         .IsRequired()
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("ResetCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ResetCodeExpiry")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -590,6 +652,10 @@ namespace TransportFourthProject.Api.Migrations
                     b.Property<int>("Percentage")
                         .HasColumnType("int");
 
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.HasKey("Id");
 
                     b.ToTable("UserDiscounts");
@@ -599,19 +665,22 @@ namespace TransportFourthProject.Api.Migrations
                         {
                             Id = 1,
                             Name = "Student discount",
-                            Percentage = 20
+                            Percentage = 20,
+                            Status = "Active"
                         },
                         new
                         {
                             Id = 2,
                             Name = "Engineer discount",
-                            Percentage = 40
+                            Percentage = 40,
+                            Status = "Active"
                         },
                         new
                         {
                             Id = 3,
                             Name = "Patient discount",
-                            Percentage = 50
+                            Percentage = 50,
+                            Status = "Active"
                         });
                 });
 
@@ -705,11 +774,15 @@ namespace TransportFourthProject.Api.Migrations
 
             modelBuilder.Entity("TransportFourthProject.Api.Models.RefreshToken", b =>
                 {
+                    b.HasOne("TransportFourthProject.Api.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId");
+
                     b.HasOne("TransportFourthProject.Api.Models.User", "User")
                         .WithMany("RefreshTokens")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("UserId");
+
+                    b.Navigation("Employee");
 
                     b.Navigation("User");
                 });

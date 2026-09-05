@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using TransportFourthProject.Api.DTOs.Payment;
 using TransportFourthProject.Api.Enums;
 using TransportFourthProject.Api.Services.Payments;
@@ -15,10 +16,13 @@ namespace TransportFourthProject.Api.Controllers
         {
             _paymentService = paymentService;
         }
-
+      //  [Authorize]
         [HttpPost("payment")]
         public async Task<IActionResult> ProcessPayment([FromBody] PaymentRequestDto request)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             var result = await _paymentService.ProcessPaymentAsync(
                 request.BookingId,
                 request.PaymentMethod
